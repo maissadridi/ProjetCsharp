@@ -1,6 +1,9 @@
-    using System;
-using Tp1;
-using Tp2;
+using System;
+
+using Model;
+using Motor;
+using Objet;
+
 using System.Linq;
 using System.IO;
 using System.Text.Json;

@@ -1,18 +1,20 @@
 using System;
 using System.Collections.Generic;
 
+using Model;
 
-namespace Model
+
+namespace Motor
 {
     class Echange
     {
         private int IdEchange;
         private Utilisateur UtilisateurProposant;
         private Utilisateur UtilisateurReceveur;
-        private Object ObjetPropose;
+        private ObjetBis ObjetPropose;
         private TypeEtatEchange EtatEchange;
 
-        public Echange(int id, Utilisateur UtilisateurProposant, Utilisateur UtilisateurReceveur, Object ObjetPropose, TypeEtatEchange EtatEchange)
+        public Echange(int id, Utilisateur UtilisateurProposant, Utilisateur UtilisateurReceveur, ObjetBis ObjetPropose, TypeEtatEchange EtatEchange)
         {
             this.IdEchange = id;
             this.UtilisateurProposant = UtilisateurProposant;

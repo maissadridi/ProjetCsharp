@@ -3,14 +3,14 @@ using System.Collections.Generic;
 
 
 namespace Model {
-    class Object
+    class ObjetBis
         {
             private string nom;
             private bool disponible;
             private TypeEtat etat;
             private string TypeObjet;
 
-            public Object(string nom, bool disponible, TypeEtat etat, string TypeObjet)
+            public ObjetBis(string nom, bool disponible, TypeEtat etat, string TypeObjet)
             {
                 this.nom = nom;
                 this.disponible = disponible;
