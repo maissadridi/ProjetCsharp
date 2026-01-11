@@ -25,10 +25,9 @@ public partial class UserWindow : Form
         comboObjType.DataSource = Enum.GetValues(typeof(TypeObjet));
         comboObjEtat.DataSource = Enum.GetValues(typeof(EtatObjet));
 
-        RefreshUserView();
         comboTargetUser.SelectedIndexChanged += (_, __) => RefreshTargetObjects();
-        RefreshProposeSection();
 
+        RefreshUserView();
     }
 
     private void chkDon_CheckedChanged(object sender, EventArgs e)
@@ -38,7 +37,6 @@ public partial class UserWindow : Form
 
     private void btnProposeExchange_Click(object sender, EventArgs e)
     {
-        // Sécurités
         if (comboMyObjectPropose.SelectedItem is not Objet myObj)
         {
             MessageBox.Show("Tu dois avoir au moins un objet disponible pour proposer un échange.");
@@ -48,6 +46,12 @@ public partial class UserWindow : Form
         if (comboTargetUser.SelectedItem is not Utilisateur targetUser)
         {
             MessageBox.Show("Sélectionne un utilisateur.");
+            return;
+        }
+
+        if (targetUser.IdUtilisateur == _current.IdUtilisateur)
+        {
+            MessageBox.Show("Impossible de proposer un échange à toi-même.");
             return;
         }
 
@@ -63,13 +67,6 @@ public partial class UserWindow : Form
             targetObjId = targetObj.IdObjet;
         }
 
-        // Interdiction logique (éviter “échange avec soi-même” même si filtré)
-        if (targetUser.IdUtilisateur == _current.IdUtilisateur)
-        {
-            MessageBox.Show("Impossible de proposer un échange à toi-même.");
-            return;
-        }
-
         try
         {
             _repo.AddExchange(
@@ -80,8 +77,6 @@ public partial class UserWindow : Form
             );
 
             MessageBox.Show("Proposition envoyée ✅ (échange en attente).", "OK");
-
-            // Recharge toutes les données / grilles
             RefreshUserView();
         }
         catch (Exception ex)
@@ -90,30 +85,29 @@ public partial class UserWindow : Form
         }
     }
 
-
     private void RefreshUserView()
     {
         _users = _repo.GetUsers();
         _objects = _repo.GetObjects();
 
-        // Recharger l’utilisateur courant (points à jour)
         var refreshed = _users.FirstOrDefault(u => u.IdUtilisateur == _current.IdUtilisateur);
         if (refreshed != null) _current = refreshed;
 
-        // Profil
         lblPseudo.Text = $"Pseudo : {_current.Pseudo}";
         lblNomPrenom.Text = $"Nom : {_current.Nom} {_current.Prenom}";
         lblPoints.Text = $"Points : {_current.Points}";
 
-        // Mes objets
         var myObjects = _objects.Where(o => o.OwnerId == _current.IdUtilisateur).ToList();
         gridMyObjects.DataSource = null;
         gridMyObjects.DataSource = myObjects.Select(o => new
         {
-            o.IdObjet, o.Nom, o.TypeObjet, o.Etat, o.Disponible
+            o.IdObjet,
+            o.Nom,
+            o.TypeObjet,
+            o.Etat,
+            o.Disponible
         }).ToList();
 
-        // Mes échanges
         BuildMyExchanges();
         gridMyExchanges.DataSource = null;
         gridMyExchanges.DataSource = _myExchanges.Select(e => new
@@ -126,6 +120,8 @@ public partial class UserWindow : Form
             e.EtatEchange,
             Date = e.DateCreated
         }).ToList();
+
+        RefreshProposeSection();
     }
 
     private void BuildMyExchanges()
@@ -136,14 +132,15 @@ public partial class UserWindow : Form
         foreach (var x in raw)
         {
             if (x.fromId != _current.IdUtilisateur && x.toId != _current.IdUtilisateur)
-                continue; // filtrage utilisateur connecté
+                continue;
 
             var fromU = _users.FirstOrDefault(u => u.IdUtilisateur == x.fromId);
             var toU = _users.FirstOrDefault(u => u.IdUtilisateur == x.toId);
             var op = _objects.FirstOrDefault(o => o.IdObjet == x.objProposeId);
             var od = x.objDemandeId.HasValue ? _objects.FirstOrDefault(o => o.IdObjet == x.objDemandeId.Value) : null;
 
-            if (fromU == null || toU == null || op == null) continue;
+            if (fromU == null || toU == null || op == null)
+                continue;
 
             _myExchanges.Add(new Echange
             {
@@ -158,7 +155,6 @@ public partial class UserWindow : Form
         }
     }
 
-    // ---------------- Mes objets ----------------
     private void btnAddObject_Click(object sender, EventArgs e)
     {
         string name = txtObjNom.Text.Trim();
@@ -177,7 +173,9 @@ public partial class UserWindow : Form
             OwnerId = _current.IdUtilisateur
         };
 
-        _repo.AddObject(obj);
+        var newId = _repo.AddObject(obj);
+        obj.IdObjet = newId;
+
         MessageBox.Show("Objet ajouté.", "OK");
         RefreshUserView();
     }
@@ -201,13 +199,14 @@ public partial class UserWindow : Form
         var obj = _objects.FirstOrDefault(o => o.IdObjet == id);
         if (obj == null) return;
 
+        if (obj.OwnerId != _current.IdUtilisateur) return;
+
         obj.Disponible = !obj.Disponible;
         _repo.UpdateObject(obj);
 
         RefreshUserView();
     }
 
-    // ---------------- Mes échanges ----------------
     private void btnAccept_Click(object sender, EventArgs e)
     {
         if (gridMyExchanges.CurrentRow == null) return;
@@ -216,7 +215,6 @@ public partial class UserWindow : Form
         var ex = _myExchanges.FirstOrDefault(x => x.IdEchange == id);
         if (ex == null) return;
 
-        // Seul le receveur peut accepter/refuser
         if (ex.UtilisateurReceveur.IdUtilisateur != _current.IdUtilisateur)
         {
             MessageBox.Show("Tu peux accepter/refuser uniquement les échanges où tu es receveur.");
@@ -270,9 +268,8 @@ public partial class UserWindow : Form
         RefreshUserView();
     }
 
-        private void RefreshProposeSection()
+    private void RefreshProposeSection()
     {
-        // Mes objets disponibles
         var myAvailable = _objects
             .Where(o => o.OwnerId == _current.IdUtilisateur && o.Disponible)
             .OrderBy(o => o.Nom)
@@ -282,7 +279,6 @@ public partial class UserWindow : Form
         comboMyObjectPropose.DataSource = myAvailable;
         comboMyObjectPropose.DisplayMember = "Nom";
 
-        // Autres utilisateurs (pas moi)
         var others = _users
             .Where(u => u.IdUtilisateur != _current.IdUtilisateur)
             .OrderBy(u => u.Pseudo)
@@ -292,11 +288,7 @@ public partial class UserWindow : Form
         comboTargetUser.DataSource = others;
         comboTargetUser.DisplayMember = "Pseudo";
 
-        // Par défaut : pas en mode don
-        if (chkDon.Checked)
-            comboTargetObjectDemande.Enabled = false;
-        else
-            comboTargetObjectDemande.Enabled = true;
+        comboTargetObjectDemande.Enabled = !chkDon.Checked;
 
         RefreshTargetObjects();
     }
@@ -310,13 +302,14 @@ public partial class UserWindow : Form
             return;
         }
 
+        comboTargetObjectDemande.Enabled = true;
+
         if (comboTargetUser.SelectedItem is not Utilisateur target)
         {
             comboTargetObjectDemande.DataSource = null;
             return;
         }
 
-        // Objets disponibles du receveur
         var targetAvailable = _objects
             .Where(o => o.OwnerId == target.IdUtilisateur && o.Disponible)
             .OrderBy(o => o.Nom)
@@ -326,5 +319,4 @@ public partial class UserWindow : Form
         comboTargetObjectDemande.DataSource = targetAvailable;
         comboTargetObjectDemande.DisplayMember = "Nom";
     }
-
 }

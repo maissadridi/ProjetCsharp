@@ -16,7 +16,7 @@ public partial class LoginWindow : Form
     {
         InitializeComponent();
         _repo = new SqliteRepository(_dbPath);
-        MessageBox.Show("LoginWindow ouvre :\n" + Data.DbPaths.GetDbPath());
+        
 
     }
 
